@@ -104,7 +104,7 @@ APK files can be shared directly with test users.
 
 ## 👥 Contributors
 
-- Engin Cem Servi  
+- Ömer Faruk Kaba
 - Esra Yıldız  
 
 ---
@@ -116,8 +116,3 @@ APK files can be shared directly with test users.
 - Notification system  
 - Similar route suggestions based on distance and location  
 
----
-
-## 📄 License
-
-This project is developed for educational and demonstration purposes.
