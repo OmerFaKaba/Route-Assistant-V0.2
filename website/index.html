@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Route Assistant — Trail & Map Companion</title>
+    <meta name="description"
+        content="Route Assistant helps you discover nearby trails, explore routes on a map, and share outdoor experiences." />
+
+    <style>
+        :root {
+            --bg: #06130f;
+            --bg2: #0a2117;
+            --card: rgba(255, 255, 255, .06);
+            --border: rgba(255, 255, 255, .12);
+            --text: rgba(255, 255, 255, .92);
+            --muted: rgba(255, 255, 255, .68);
+
+            --leaf: #34d399;
+            --sky: #60a5fa;
+            --sun: #fbbf24;
+
+            --radius: 18px;
+            --shadow: 0 20px 70px rgba(0, 0, 0, .40);
+            --shadow2: 0 12px 35px rgba(0, 0, 0, .25);
+
+            --max: 1120px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%
+        }
+
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            color: var(--text);
+            background:
+                radial-gradient(900px 500px at 18% 10%, rgba(52, 211, 153, .18), transparent 60%),
+                radial-gradient(900px 500px at 85% 18%, rgba(96, 165, 250, .14), transparent 55%),
+                radial-gradient(900px 500px at 55% 100%, rgba(251, 191, 36, .10), transparent 60%),
+                linear-gradient(180deg, var(--bg), var(--bg2));
+            overflow-x: hidden;
+        }
+
+        /* Topographic overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                repeating-radial-gradient(circle at 25% 30%,
+                    rgba(255, 255, 255, .07) 0px,
+                    rgba(255, 255, 255, .07) 1px,
+                    transparent 28px,
+                    transparent 36px);
+            opacity: .06;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        a {
+            color: inherit
+        }
+
+        .container {
+            max-width: var(--max);
+            margin: 0 auto;
+            padding: 0 18px
+        }
+
+        /* NAV */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(10px);
+            background: rgba(6, 19, 15, .62);
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            gap: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 900;
+            letter-spacing: .2px;
+            user-select: none;
+        }
+
+        .logo {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--leaf), var(--sky));
+            box-shadow: 0 12px 35px rgba(52, 211, 153, .18);
+            position: relative;
+        }
+
+        .logo:after {
+            content: "";
+            position: absolute;
+            inset: 7px 9px 9px 7px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 0, 0, .18);
+            opacity: .35;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--muted);
+            font-weight: 900;
+            font-size: 14px;
+            padding: 8px 10px;
+            border-radius: 12px;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, .04)
+        }
+
+        .nav-cta {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .05);
+            text-decoration: none;
+            font-weight: 900;
+            font-size: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .14);
+            transform: translateY(0);
+            transition: transform .15s ease, filter .15s ease, background .15s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.03)
+        }
+
+        .btn-primary {
+            border: 0;
+            background: linear-gradient(135deg, var(--leaf), var(--sky));
+            color: #04130d;
+        }
+
+        .btn-ghost {
+            background: rgba(255, 255, 255, .02)
+        }
+
+        .menu-btn {
+            display: none;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .04);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-weight: 900;
+        }
+
+        @media (max-width: 820px) {
+            .nav-links {
+                display: none
+            }
+
+            .menu-btn {
+                display: inline-flex
+            }
+
+            .nav-cta .btn-ghost {
+                display: none
+            }
+        }
+
+        /* Mobile drawer */
+        .drawer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            backdrop-filter: blur(3px);
+            display: none;
+            z-index: 100;
+            padding: 18px;
+        }
+
+        .drawer.open {
+            display: block
+        }
+
+        .drawer-panel {
+            max-width: 520px;
+            margin: 0 auto;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(7, 20, 15, .92);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        .drawer-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .drawer-links {
+            display: grid;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .drawer-links a {
+            text-decoration: none;
+            padding: 12px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            font-weight: 900;
+            color: rgba(255, 255, 255, .86);
+        }
+
+        /* HERO */
+        header {
+            padding: 60px 0 18px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.2fr .8fr;
+            gap: 22px;
+            align-items: center;
+        }
+
+        @media (max-width: 980px) {
+            .hero {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .04);
+            border-radius: 999px;
+            color: var(--muted);
+            font-weight: 900;
+            font-size: 13px;
+        }
+
+        h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(34px, 4.6vw, 58px);
+            line-height: 1.02;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.7;
+            max-width: 62ch;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .hint {
+            color: rgba(255, 255, 255, .58);
+            font-size: 13px;
+            margin-top: 12px;
+            line-height: 1.5;
+        }
+
+        /* Right hero card */
+        .glass {
+            border-radius: 26px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .10);
+            box-shadow: var(--shadow);
+            padding: 14px;
+            overflow: hidden;
+            position: relative;
+            min-height: 360px;
+        }
+
+        .glass::before {
+            content: "";
+            position: absolute;
+            inset: -140px auto auto -140px;
+            width: 360px;
+            height: 360px;
+            background: radial-gradient(circle at 45% 45%, rgba(52, 211, 153, .22), transparent 62%);
+            transform: rotate(-18deg);
+        }
+
+        .hero-card {
+            background: none !important;
+            /* hero.jpg iptal */
+        }
+
+        .hero-photo {
+            position: absolute;
+            inset: 0;
+            background: url("assets/shot2-explore.png") center/cover no-repeat;
+
+        }
+
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            opacity: .55;
+            mix-blend-mode: screen;
+            pointer-events: none;
+            background:
+                radial-gradient(900px 500px at 20% 15%, rgba(96, 165, 250, .22), transparent 55%),
+                radial-gradient(700px 450px at 80% 65%, rgba(52, 211, 153, .18), transparent 58%);
+        }
+
+        .logo {
+            display: none;
+        }
+
+        /* eski gradient kutuyu gizle */
+
+        .logo-img {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            object-fit: cover;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, .25);
+        }
+
+        /* ✅ NEW: phone preview inside hero */
+        .phone {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            bottom: 72px;
+            /* leaves space for pills */
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(0, 0, 0, .20);
+            overflow: hidden;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, .35);
+        }
+
+        .phone img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            opacity: .95;
+        }
+
+        .route-line {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: .32;
+            /* lighter so screenshot visible */
+        }
+
+        .route-line svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hero-kpis {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(0, 0, 0, .22);
+            backdrop-filter: blur(8px);
+        }
+
+        .pill {
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .10);
+            border: 1px solid rgba(255, 255, 255, .12);
+            font-weight: 900;
+            font-size: 12px;
+            color: rgba(255, 255, 255, .86);
+        }
+
+        /* Sections */
+        section {
+            padding: 44px 0
+        }
+
+        .section-title {
+            font-size: 22px;
+            margin: 0 0 12px;
+            letter-spacing: -.2px;
+        }
+
+        .section-desc {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.7;
+            max-width: 75ch;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-3 {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow2);
+        }
+
+        .card h3 {
+            margin: 0 0 8px;
+            font-size: 16px
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        @media (max-width: 900px) {
+            .features {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .feat {
+            display: flex;
+            gap: 12px;
+            padding: 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .03);
+        }
+
+        .icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: rgba(52, 211, 153, .12);
+            border: 1px solid rgba(52, 211, 153, .25);
+            flex: 0 0 auto;
+            font-weight: 900;
+        }
+
+        .feat b {
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .feat span {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55
+        }
+
+        /* Screenshots gallery */
+        .shots {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 1100px) {
+            .shots {
+                grid-template-columns: repeat(2, 1fr)
+            }
+        }
+
+        @media (max-width: 520px) {
+            .shots {
+                grid-template-columns: 1fr
+            }
+        }
+
+        figure {
+            margin: 0;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .03);
+            box-shadow: var(--shadow2);
+            cursor: zoom-in;
+            transition: transform .15s ease, filter .15s ease;
+        }
+
+        figure:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.03)
+        }
+
+        figure img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            display: block;
+            background: rgba(0, 0, 0, .25);
+        }
+
+        figcaption {
+            padding: 10px 12px;
+            border-top: 1px solid rgba(255, 255, 255, .10);
+            color: rgba(255, 255, 255, .80);
+            font-weight: 900;
+            font-size: 13px;
+            background: rgba(0, 0, 0, .22);
+        }
+
+        /* Tech chips */
+        .chips {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap
+        }
+
+        .chip {
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .03);
+            font-weight: 900;
+            color: rgba(255, 255, 255, .78);
+            font-size: 13px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 30px 0 44px;
+            border-top: 1px solid rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .62);
+        }
+
+        .foot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .small {
+            font-size: 13px
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .75);
+            backdrop-filter: blur(4px);
+            display: none;
+            z-index: 200;
+            padding: 18px;
+        }
+
+        .modal.open {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-card {
+            width: min(980px, 100%);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(7, 20, 15, .92);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .modal-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, .10);
+        }
+
+        .modal-title {
+            font-weight: 900;
+            color: rgba(255, 255, 255, .86);
+            font-size: 14px
+        }
+
+        .close {
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .06);
+            color: rgba(255, 255, 255, .86);
+            border-radius: 12px;
+            padding: 8px 10px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .modal-img {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: rgba(0, 0, 0, .25);
+        }
+
+        code.inline {
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .05);
+            font-size: 12px;
+            color: rgba(255, 255, 255, .80);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Mobile Drawer -->
+    <div class="drawer" id="drawer" aria-hidden="true">
+        <div class="drawer-panel">
+            <div class="drawer-top">
+                <div class="brand">
+                    <img class="logo-img" src="assets/logo.png" alt="Route Assistant logo" />
+
+                    <div>Route Assistant</div>
+                </div>
+                <button class="close" id="drawerClose" type="button">✕</button>
+            </div>
+
+            <div class="drawer-links">
+                <a href="#about" class="drawerLink">About</a>
+                <a href="#features" class="drawerLink">Features</a>
+                <a href="#screens" class="drawerLink">Screens</a>
+                <a href="#tech" class="drawerLink">Tech</a>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+                <a class="btn btn-primary" href="#" id="apkLinkDrawer">⬇️ Download APK</a>
+                <a class="btn btn-ghost drawerLink" href="#screens">📸 View Screens</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+            <div class="modal-top">
+                <div class="modal-title" id="modalTitle">Preview</div>
+                <button class="close" id="modalClose" type="button">Close</button>
+            </div>
+            <img class="modal-img" id="modalImg" alt="Screenshot preview" />
+        </div>
+    </div>
+
+    <!-- NAV -->
+    <div class="nav">
+        <div class="container">
+            <div class="nav-inner">
+                <div class="brand">
+                    <img class="logo-img" src="assets/logo.png" alt="Route Assistant logo" />
+
+                    <div>Route Assistant</div>
+                </div>
+
+                <div class="nav-links">
+                    <a href="#about">About</a>
+                    <a href="#features">Features</a>
+                    <a href="#screens">Screens</a>
+                    <a href="#tech">Tech</a>
+                </div>
+
+                <div class="nav-cta">
+                    <a class="btn btn-primary" href="#" id="apkLinkTop">⬇️ Download APK</a>
+                    <a class="btn btn-ghost" href="#screens">📸 Screens</a>
+                    <button class="menu-btn" id="menuBtn" type="button">Menu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HERO -->
+    <header>
+        <div class="container">
+            <div class="hero">
+                <div>
+                    <div class="badge">🌿 Trail & Map • Mobile Application Development</div>
+                    <h1>Discover trails. Navigate routes. Explore nature.</h1>
+                    <p class="subtitle">
+                        Route Assistant is a map-first mobile application that helps users discover hiking routes,
+                        find nearby trails, and view route details instantly — with community features like comments
+                        and messaging.
+                    </p>
+
+                    <div class="hero-actions">
+                        <a class="btn btn-primary" href="#" id="apkLinkHero">⬇️ Download APK</a>
+                        <a class="btn btn-ghost" href="#features">✨ View Features</a>
+                    </div>
+
+
+                </div>
+
+                <div class="glass">
+                    <div class="hero-card">
+                        <div class="map-overlay"></div>
+
+                        <!-- ✅ NEW: screenshot preview -->
+                        <div class="phone">
+                            <!-- change this to any screenshot you want -->
+                            <img src="assets/shot4-trail.png" alt="Route Assistant preview" />
+                        </div>
+
+                        <!-- Route line + pins -->
+                        <div class="route-line" aria-hidden="true">
+                            <svg viewBox="0 0 1000 600" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="1">
+                                        <stop offset="0%" stop-color="rgba(52,211,153,.95)" />
+                                        <stop offset="100%" stop-color="rgba(96,165,250,.95)" />
+                                    </linearGradient>
+                                </defs>
+
+                                <path d="M80,420 C240,260 310,490 470,330 C610,190 700,260 840,160" fill="none"
+                                    stroke="url(#routeGrad)" stroke-width="6" stroke-linecap="round"
+                                    stroke-dasharray="10 14" opacity="0.9" />
+
+                                <circle cx="80" cy="420" r="10" fill="rgba(251,191,36,.95)" />
+                                <circle cx="470" cy="330" r="10" fill="rgba(52,211,153,.95)" />
+                                <circle cx="840" cy="160" r="10" fill="rgba(96,165,250,.95)" />
+                            </svg>
+                        </div>
+
+                        <div class="hero-kpis">
+                            <div class="pill">🗺️ Map Exploration</div>
+                            <div class="pill">📍 Nearby Trails</div>
+                            <div class="pill">🔐 Supabase Auth</div>
+                            <div class="pill">💬 Community</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- ABOUT -->
+        <section id="about">
+            <div class="container">
+                <h2 class="section-title">What is Route Assistant?</h2>
+                <p class="section-desc">
+                    Route Assistant combines outdoor exploration with map-based navigation. Users can browse routes on a
+                    map,
+                    open route details, discover trails near their location, and interact with the community through
+                    comments
+                    and messaging — all in a clean, mobile-first experience.
+                </p>
+
+                <div class="grid-3">
+                    <div class="card">
+                        <h3>🥾 Outdoor Discovery</h3>
+                        <p>Explore hiking routes and choose your next adventure with a map-first UI.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🧭 Route Details</h3>
+                        <p>Open a route, read its description, view the path and key points on the map.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🤝 Community</h3>
+                        <p>Leave comments, share experiences, and message other users inside the app.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FEATURES -->
+        <section id="features">
+            <div class="container">
+                <h2 class="section-title">Key Features</h2>
+                <p class="section-desc">
+                    Built around a real hiking flow: explore → open details → save/share → interact.
+                </p>
+
+                <div class="features">
+                    <div class="feat">
+                        <div class="icon">🗺️</div>
+                        <div>
+                            <b>Map-Based Exploration</b>
+                            <span>Browse routes directly on an interactive map and jump into route details with one
+                                tap.</span>
+                        </div>
+                    </div>
+
+                    <div class="feat">
+                        <div class="icon">📍</div>
+                        <div>
+                            <b>Nearby Trails</b>
+                            <span>Find trails close to your current location for quick outdoor planning.</span>
+                        </div>
+                    </div>
+
+                    <div class="feat">
+                        <div class="icon">🧾</div>
+                        <div>
+                            <b>Route Detail Experience</b>
+                            <span>Description + map path/markers presented clearly in a single screen.</span>
+                        </div>
+                    </div>
+
+                    <div class="feat">
+                        <div class="icon">🔐</div>
+                        <div>
+                            <b>Secure Authentication</b>
+                            <span>Login & Register powered by Supabase Auth for reliable user management.</span>
+                        </div>
+                    </div>
+
+                    <div class="feat">
+                        <div class="icon">💬</div>
+                        <div>
+                            <b>Comments & Messaging</b>
+                            <span>Community interaction through route comments and direct messages.</span>
+                        </div>
+                    </div>
+
+                    <div class="feat">
+                        <div class="icon">⚡</div>
+                        <div>
+                            <b>Performance Mindset</b>
+                            <span>Backend and app flow tested for stability under load and real usage.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREENS -->
+        <section id="screens">
+            <div class="container">
+                <h2 class="section-title">Screenshots</h2>
+
+
+                <div class="shots">
+                    <figure class="shot" data-title="Onboarding" data-src="assets/shot1-login.png">
+                        <img src="assets/shot1-login.png" alt="Onboarding" />
+                        <figcaption>Onboarding</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Explore / Home" data-src="assets/shot2-explore.png">
+                        <img src="assets/shot2-explore.png" alt="Explore / Home" />
+                        <figcaption>Explore / Home</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Route Detail" data-src="assets/shot3-route-detail.png">
+                        <img src="assets/shot3-route-detail.png" alt="Route Detail" />
+                        <figcaption>Route Detail</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Trail" data-src="assets/shot4-trail.png">
+                        <img src="assets/shot4-trail.png" alt="Trail" />
+                        <figcaption>Trail</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Nearby" data-src="assets/shot5-nearby.png">
+                        <img src="assets/shot5-nearby.png" alt="Nearby" />
+                        <figcaption>Nearby</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Profile" data-src="assets/shot6-profile.png">
+                        <img src="assets/shot6-profile.png" alt="Profile" />
+                        <figcaption>Profile</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Messages" data-src="assets/shot7-messages.png">
+                        <img src="assets/shot7-messages.png" alt="Messages" />
+                        <figcaption>Messages</figcaption>
+                    </figure>
+
+                    <figure class="shot" data-title="Register" data-src="assets/shot8-testing.png">
+                        <img src="assets/shot8-testing.png" alt="Register" />
+                        <figcaption>Register</figcaption>
+                    </figure>
+                </div>
+            </div>
+        </section>
+
+        <!-- TECH -->
+        <section id="tech">
+            <div class="container">
+                <h2 class="section-title">Technology & Stack</h2>
+                <p class="section-desc">
+                    A modern mobile stack focused on maps, authentication, and real-time capabilities.
+                </p>
+
+                <div class="chips">
+                    <div class="chip">Flutter</div>
+                    <div class="chip">Dart</div>
+                    <div class="chip">Google Maps API</div>
+                    <div class="chip">Supabase Auth</div>
+                    <div class="chip">PostgreSQL</div>
+                    <div class="chip">Realtime Messaging</div>
+                </div>
+
+                <div style="height:12px"></div>
+
+                <div class="grid-3">
+                    <div class="card">
+                        <h3>🔐 Authentication & Security</h3>
+                        <p>Secure user authentication and session management powered by Supabase Auth.</p>
+                    </div>
+                    <div class="card">
+                        <h3>📈 Performance</h3>
+                        <p>Optimized API usage and UI flow to keep interactions smooth and reliable.</p>
+                    </div>
+                    <div class="card">
+                        <h3>✅ Conclusion</h3>
+                        <p>Route Assistant demonstrates a usable, map-first outdoor experience with real-world features.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="foot">
+                <div class="small">Developed by <strong>Ömer Faruk Kaba</strong> — Route Assistant</div>
+                <div class="small">Mobile Application Development Project • 2025</div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ====== CONFIG (edit these) ======
+        const APK_URL = "https://drive.google.com/file/d/1BGlKu794j8jdpVaM4hp0dO0Ivjg7VuZV/view?usp=drive_link";
+        // ================================
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener("click", (e) => {
+                const href = a.getAttribute("href");
+                if (!href || href.length < 2) return;
+                const el = document.querySelector(href);
+                if (!el) return;
+                e.preventDefault();
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+        });
+
+        // Set APK links
+        const apkBtns = ["apkLinkTop", "apkLinkHero", "apkLinkDrawer"]
+            .map(id => document.getElementById(id))
+            .filter(Boolean);
+
+        apkBtns.forEach(btn => {
+            if (APK_URL && APK_URL.trim().length > 0) {
+                btn.href = APK_URL;
+                btn.target = "_blank";
+                btn.rel = "noopener";
+            } else {
+                btn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    alert("Add your APK link in the JS config: APK_URL");
+                });
+            }
+        });
+
+        // Mobile drawer
+        const drawer = document.getElementById("drawer");
+        const menuBtn = document.getElementById("menuBtn");
+        const drawerClose = document.getElementById("drawerClose");
+        const closeDrawer = () => { drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); };
+        const openDrawer = () => { drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); };
+        menuBtn?.addEventListener("click", openDrawer);
+        drawerClose?.addEventListener("click", closeDrawer);
+        drawer?.addEventListener("click", (e) => { if (e.target === drawer) closeDrawer(); });
+
+        // Screenshot modal zoom
+        const modal = document.getElementById("modal");
+        const modalImg = document.getElementById("modalImg");
+        const modalTitle = document.getElementById("modalTitle");
+        const modalClose = document.getElementById("modalClose");
+
+        const openModal = (src, title) => {
+            modalImg.src = src;
+            modalImg.alt = title || "Screenshot";
+            modalTitle.textContent = title || "Preview";
+            modal.classList.add("open");
+            modal.setAttribute("aria-hidden", "false");
+        };
+        const closeModal = () => {
+            modal.classList.remove("open");
+            modal.setAttribute("aria-hidden", "true");
+            modalImg.src = "";
+        };
+
+        document.querySelectorAll(".shot").forEach(fig => {
+            fig.addEventListener("click", () => {
+                const src = fig.getAttribute("data-src");
+                const title = fig.getAttribute("data-title");
+                if (src) openModal(src, title);
+            });
+        });
+
+        modalClose?.addEventListener("click", closeModal);
+        modal?.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+    </script>
+</body>
+
+</html>
